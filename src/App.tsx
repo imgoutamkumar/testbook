@@ -10,13 +10,14 @@ import Register from './pages/auth/register'
 import Profile from './pages/auth/profile'
 import Products from './pages/admin/products'
 import AdminLayout from './components/admin/AdminLayout'
-import NewProduct from './pages/admin/newProduct'
+import NewProduct from './pages/admin/newExam'
 import AllProducts from './pages/shop/products'
 import ProductDetails from './pages/shop/productDetails'
 import RoleGuard from './guards/RoleGuard'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Checkout from './pages/shop/Checkout'
 import Otp from './pages/auth/Otp'
+import NewExam from './pages/admin/newExam'
 
 function App() {
 
@@ -53,7 +54,7 @@ function App() {
         {/* <Route path="product/new" element={<NewProduct />} /> */}
       </Route>
       </Route>
-       <Route path="/admin/product/new" element={<NewProduct />} />
+       <Route path="/admin/product/new" element={<NewExam />} />
     </Routes>
   )
 }

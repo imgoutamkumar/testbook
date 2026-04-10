@@ -2,6 +2,12 @@ import { useFieldArray } from "react-hook-form"
 import { Button } from "@/components/ui/button"
 import { CustomInput } from "@/customComponent/input"
 import { CustomRadioButton } from "@/customComponent/radiobutton"
+import { Trash2 } from "lucide-react"
+
+const correctOptions = [
+  { label: "Correct", value: true },
+  { label: "Incorrect", value: false }
+]
 
 const OptionFieldArray = ({ control, qIndex, sIndex, tIndex, tsIndex }) => {
   const { fields, append, remove } = useFieldArray({
@@ -25,9 +31,12 @@ const OptionFieldArray = ({ control, qIndex, sIndex, tIndex, tsIndex }) => {
             control={control}
             name={`testSeries.${tsIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options.${optIndex}.isCorrect`}
             label="Correct"
+            options={correctOptions}
           />
 
-          <Button type="button" onClick={() => remove(optIndex)}>X</Button>
+          <Button variant="outline" type="button" onClick={() => remove(optIndex)}>
+            <Trash2 className="w-4 h-4 text-red-500" />
+          </Button>
         </div>
       ))}
 
