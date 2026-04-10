@@ -20,6 +20,7 @@ type LoginResponse = {
     role: string
     id: string
     email: string
+    action?: string
   } | null
 }
 
@@ -27,7 +28,7 @@ export const authApi = createApi({
     reducerPath: 'authApi',
     tagTypes: ['User'],
     baseQuery: fetchBaseQuery({
-        baseUrl: 'https://golang-fashion-backend.onrender.com',
+        baseUrl: 'http://localhost:3000/',
         prepareHeaders: (headers, { getState }) => {
             const token = (getState() as any).auth.token
 

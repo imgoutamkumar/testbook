@@ -16,6 +16,7 @@ import ProductDetails from './pages/shop/productDetails'
 import RoleGuard from './guards/RoleGuard'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import Checkout from './pages/shop/Checkout'
+import Otp from './pages/auth/Otp'
 
 function App() {
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="login" element={<Login />} />
         <Route path="register" element={<Register />} />
       </Route>
+      <Route path='/auth/otp' element={<Otp/>}></Route>
 
       <Route element={<RoleGuard allowedRoles={["user"]} />}>
         <Route path='/shop' element={<ShopLayout />} >
@@ -48,9 +50,10 @@ function App() {
       <Route path='dashboard' element={<AdminDashboard />} />
         <Route path='profile/:id' element={<Profile />} />
         <Route path="products" element={<Products />} />
-        <Route path="product/new" element={<NewProduct />} />
+        {/* <Route path="product/new" element={<NewProduct />} /> */}
       </Route>
       </Route>
+       <Route path="/admin/product/new" element={<NewProduct />} />
     </Routes>
   )
 }

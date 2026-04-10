@@ -19,7 +19,7 @@ const loginFormSchema = z.object({
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [login, { isLoading }] = useLoginMutation()
+  const [login, { data:loginData,isLoading }] = useLoginMutation()
   const loginInitialState = {
     email: "",
     password: ""
@@ -35,30 +35,40 @@ const Login = () => {
     },
   })
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    console.log("handleSubmit called")
     event.preventDefault();
+     try {
     const response = await login(loginState).unwrap();
-    if (!response || response.status.toLowerCase() !== "success") return;
-    form.reset()
-    dispatch(setToken(response.token))
-    if (response.data) {
-      dispatch(setRole(response.data.role))
+    console.log("response", response);
+    console.log("loginData",loginData)
+
+    form.reset();
+    dispatch(setToken(response.token));
+
+    if (response?.data?.action === "VERIFY_ACCOUNT") {
+      navigate("/auth/otp");
+    } else if (response.status.toLowerCase() !== "success") {
+      return;
+    } else {
+      dispatch(setRole(response.data.role));
 
       if (response.data.role === "admin") {
-        navigate("/admin/dashboard")
-      }
-      else if (response.data.role === "user") {
-        navigate("/shop/home")
-      }
-      else {
-        navigate("/")
+        navigate("/admin/dashboard");
+      } else if (response.data.role === "user") {
+        navigate("/shop/home");
+      } else {
+        navigate("/");
       }
     }
+  } catch (error) {
+    console.error("Login failed:", error);
+  }
   };
 
 
   return (
     <div className="relative w-full h-full flex items-center justify-center">
-      <div className="flex flex-col justify-center w-full h-full max-w-sm z-20">
+      <div className="flex flex-col justify-center w-full h-full max-w-sm z-20 px-2 md:px-0">
         <form onSubmit={handleSubmit}>
           <div className="flex flex-col gap-4">
             <h1 className="text-3xl font-bold">Login</h1>
