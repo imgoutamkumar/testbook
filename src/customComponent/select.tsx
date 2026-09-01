@@ -2,55 +2,67 @@ import { FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/comp
 import type { Control, FieldValues, Path } from "react-hook-form"
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select"
 
-
 interface CustomSelectProps<T extends FieldValues> {
   control: Control<T>
   name: Path<T>
   label: string
   placeholder?: string
-  type?: string
-  pattern?: string
-  numericMode?: "int" | "decimal"
-  options?: { value: string; label: string }[],
+  options?: { value: string; label: string }[]
   isLoading?: boolean
+  className?: string // Added to allow overriding wrapper styles (like margins)
   onSelectValueChange?: (value: string) => void
 }
 
-export const CustomSelect = <T extends FieldValues>({ control, name, label, placeholder, options, isLoading, onSelectValueChange }: CustomSelectProps<T>) => {
+export const CustomSelect = <T extends FieldValues>({ 
+  control, 
+  name, 
+  label, 
+  placeholder, 
+  options = [], 
+  isLoading, 
+  className = "w-full", // Default to full width
+  onSelectValueChange 
+}: CustomSelectProps<T>) => {
   return (
     <FormField
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <FormItem className="mb-4 gap-0">
-          <FormLabel className="mb-2">{label}</FormLabel>
+        // Removed hardcoded mb-4 so the parent Grid handles the spacing evenly
+        <FormItem className={`flex flex-col gap-1.5 ${className}`}>
+          <FormLabel>{label}</FormLabel>
           <FormControl>
-            <Select {...field} value={field.value ?? ''}
+            <Select 
+              // Don't spread {...field} blindly into Radix Select. Explicitly map what it needs.
+              name={field.name}
+              value={field.value || undefined} // Radix prefers undefined over empty string for unselected state
               onValueChange={(value) => {
-                field.onChange(value)
-                onSelectValueChange?.(value)
+                field.onChange(value) // Tell React Hook Form
+                onSelectValueChange?.(value) // Trigger any custom side-effects
               }}
-              disabled={isLoading}
+              disabled={isLoading || field.disabled} // Respects both custom loading and RHF disabled state
             >
               <SelectTrigger className="w-full">
-                <SelectValue placeholder={placeholder || "Select an option"} />
+                <SelectValue placeholder={placeholder || `Select ${label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
                 <SelectGroup>
-                  <SelectLabel>Select</SelectLabel>
-                  {options?.map((option) => {
-                    return <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
-                  })}
+                  <SelectLabel>{label}</SelectLabel>
+                  {options?.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
                 </SelectGroup>
               </SelectContent>
             </Select>
           </FormControl>
+
+          {/* Error Message Animation Container */}
           <div
-            className={`transition-all duration-200 ease-out
-              ${fieldState.error
-                ? "opacity-100 translate-y-0"
-                : "opacity-0 -translate-y-1"}
-            `}
+            className={`transition-all duration-200 ease-out overflow-hidden ${
+              fieldState.error ? "max-h-10 opacity-100 mt-1" : "max-h-0 opacity-0 mt-0"
+            }`}
           >
             <FormMessage className="text-[11px]" />
           </div>

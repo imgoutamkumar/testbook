@@ -1,66 +1,102 @@
-import { Button } from "@/components/ui/button"
-import { useRegisterMutation } from "@/redux/services/authApi"
-import { Link } from "react-router-dom"
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
-import { CustomInput } from "@/customComponent/input"
-import { Form } from "@/components/ui/form"
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Link, useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { useRegisterMutation } from "@/redux/services/authApi";
 
-const registerFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
-  confirmPassword: z.string().min(1, { message: "Confirm Password is required" }),
+const registerSchema = z.object({
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
-})
+});
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
 const Register = () => {
-  const form = useForm<z.infer<typeof registerFormSchema>>({
-    resolver: zodResolver(registerFormSchema),
-    mode: "onTouched",
-    defaultValues: {
-      name: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
-  })
-  const [register, { isLoading }] = useRegisterMutation()
+  const navigate = useNavigate();
+  const [registerUser, { isLoading }] = useRegisterMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const onRegisterFormSubmit = async (values: z.infer<typeof registerFormSchema>) => {
-    await register(values)
-    form.reset()
-  }
+  const { register, handleSubmit, formState: { errors } } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+  });
+
+  const onSubmit = async (values: RegisterFormValues) => {
+    setServerError(null);
+    try {
+      const response = await registerUser({
+        name: values.name,
+        email: values.email,
+        password: values.password,
+      }).unwrap();
+
+      if (response.success) {
+        // Securely pass email to OTP page via memory state, not URL
+        navigate("/auth/otp", { state: { email: values.email }, replace: true });
+      }
+    } catch (err: any) {
+      setServerError(err?.data?.message || "Registration failed. Email might already exist.");
+    }
+  };
+
   return (
-    <div className="max-w-sm w-full">
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onRegisterFormSubmit)}>
-          <div className="flex flex-col">
-             <h1 className="text-3xl font-bold pb-3.5">Register</h1>
-            {/* <CustomInput control={form.control} name="username" label="Username" /> */}
-            <CustomInput control={form.control} name="name" label="Full Name" />
-            {/* <CustomSelect control={form.control} name="gender" label="Gender" options={genderOptions} /> */}
-            <CustomInput control={form.control} name="email" label="Email" />
-            <CustomInput control={form.control} name="password" label="Password" type="password" />
-            <CustomInput control={form.control} name="confirmPassword" label="Confirm Password" type="password" />
-            <Button
-              className="w-full cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={isLoading}
-              type="submit">
-              {isLoading ? "Registering..." : "Register"}
-            </Button>
+    <div className="w-full min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-md bg-white p-8 rounded-xl border shadow-sm">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold">Create Account</h1>
+          <p className="text-sm text-gray-500 mt-1">Start preparing for your competitive exams</p>
+        </div>
+
+        {serverError && (
+          <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-md">
+            {serverError}
           </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Full Name</Label>
+            <Input id="name" placeholder="John Doe" {...register("name")} disabled={isLoading} />
+            {errors.name && <p className="text-xs text-red-500">{errors.name.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input id="email" type="email" placeholder="student@example.com" {...register("email")} disabled={isLoading} />
+            {errors.email && <p className="text-xs text-red-500">{errors.email.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input id="password" type="password" placeholder="••••••••" {...register("password")} disabled={isLoading} />
+            {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm Password</Label>
+            <Input id="confirmPassword" type="password" placeholder="••••••••" {...register("confirmPassword")} disabled={isLoading} />
+            {errors.confirmPassword && <p className="text-xs text-red-500">{errors.confirmPassword.message}</p>}
+          </div>
+
+          <Button className="w-full mt-2" disabled={isLoading} type="submit">
+            {isLoading ? "Creating account..." : "Register"}
+          </Button>
         </form>
-      </Form>
-      <div>
-        <p className="text-sm text-center mt-4"><span>Already have an account? <Link to="/auth/login" className="text-blue-500">Login</Link></span></p>
+
+        <p className="text-sm text-center text-gray-500 mt-6">
+          Already have an account? <Link to="/auth/login" className="text-blue-600 hover:underline">Sign In</Link>
+        </p>
       </div>
     </div>
+  );
+};
 
-  )
-}
-
-export default Register
+export default Register;

@@ -1,104 +1,110 @@
+import { useState } from 'react'
+import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import * as z from "zod"
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Form } from '@/components/ui/form'
 import { CustomInput } from '@/customComponent/input'
-import { CustomTextarea } from '@/customComponent/textarea'
-import { useCreateProductMutation } from '@/redux/services/productApi'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import * as z from "zod"
-import TestSeriesFieldArray from './TestSeriesFieldArray'
+import CollectionFieldArray from './CollectionFieldArray' // Fixed import usage
 
-/* ---------------- SCHEMA ---------------- */
+// RTK Query hooks
+import { 
+  useCreateCollectionMutation, 
+  useCreateTestMutation, 
+  useCreateQuestionMutation 
+} from '@/redux/services/testApi'
+
+/* ---------------- 1. SCHEMA ---------------- */
 
 const optionSchema = z.object({
-  text: z.string().min(1, "Option text required"),
+  content: z.string().min(1, "Option text required"),
   isCorrect: z.boolean().default(false),
-  order: z.number().int().optional()
 })
 
 const questionSchema = z.object({
-  text: z.string().min(1),
-  marks: z.number().int().positive(),
-  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]),
-  type: z.enum(["SINGLE", "MULTIPLE", "NUMERIC", "TRUE_FALSE"]),
-  categoryId: z.string(),
-  options: z.array(optionSchema).min(2)
-}).refine(q => q.options.some(o => o.isCorrect), {
-  message: "At least one correct option required"
+  subject: z.string().min(1, "Subject required (e.g., Math)"),
+  topic: z.string().min(1, "Topic required (e.g., Algebra)"),
+  content: z.string().min(1, "Question text required"), 
+  marks: z.coerce.number().positive(),
+  negativeMarks: z.coerce.number().min(0).default(0),
+  difficulty: z.enum(["EASY", "MEDIUM", "HARD"]).default("MEDIUM"),
+  type: z.enum(["SINGLE_CHOICE", "MULTIPLE_CHOICE", "NUMERIC_INPUT"]).default("SINGLE_CHOICE"),
+  options: z.array(optionSchema).min(2),
 })
 
 const sectionSchema = z.object({
-  name: z.string().optional(),
-  totalQuestions: z.number().int(),
-  totalMarks: z.number().int(),
-  categoryId: z.string(),
-  questions: z.array(questionSchema).min(1)
+  name: z.string().min(1, "Section name required"),
+  duration: z.coerce.number().int().optional(), 
+  order: z.coerce.number().int().default(1),
+  questions: z.array(questionSchema).min(1, "At least one question required")
 })
 
 const testSchema = z.object({
-  title: z.string().min(3),
-  duration: z.number().int(),
-  totalMarks: z.number().int(),
-  totalQuestions: z.number().int(),
+  title: z.string().min(3, "Test title required"),
+  type: z.enum(["FULL_MOCK", "SECTIONAL", "TOPIC", "PREVIOUS_YEAR", "LIVE"]).default("FULL_MOCK"),
+  totalDuration: z.coerce.number().int().positive("Duration required (seconds)"),
+  totalMarks: z.coerce.number().int().positive("Total marks required"),
+  strictNavigation: z.boolean().default(false),
+  liveStartTime: z.string().optional(),
+  liveEndTime: z.string().optional(),
   sections: z.array(sectionSchema).min(1)
 })
 
-const testSeriesSchema = z.object({
-  title: z.string().min(3),
-  description: z.string().optional(),
-  price: z.number().optional(),
-  isPremium: z.boolean().default(false),
+const collectionSchema = z.object({
+  name: z.string().min(3, "Collection title required"),
+  type: z.enum(["ROOT_CATEGORY", "EXAM", "TEST_SERIES", "SUBJECT_BUNDLE"]).default("TEST_SERIES"),
   tests: z.array(testSchema).min(1)
 })
 
 export const createExamSchema = z.object({
-  name: z.string().min(3),
-  description: z.string().optional(),
-  testSeries: z.array(testSeriesSchema).min(1)
+  parentId: z.string().optional(), // Fixed naming
+  collections: z.array(collectionSchema).min(1)
 })
 
-/* ---------------- FORM ---------------- */
+/* ---------------- 2. EXAM FORM CONTAINER ---------------- */
 
 const ExamForm = () => {
   const [currentStep, setCurrentStep] = useState(1)
+  
+  const [createCollection, { isLoading: isCollLoading }] = useCreateCollectionMutation()
+  const [createTest, { isLoading: isTestLoading }] = useCreateTestMutation()
+  const [createQuestion, { isLoading: isQuesLoading }] = useCreateQuestionMutation()
 
-  const [createProduct, { isLoading }] = useCreateProductMutation()
+  const isLoading = isCollLoading || isTestLoading || isQuesLoading;
 
   const form = useForm({
     resolver: zodResolver(createExamSchema),
     defaultValues: {
-      name: "",
-      description: "",
-      testSeries: [
+      parentId: "", // Corresponds to Zod schema
+      collections: [
         {
-          title: "",
-          description: "",
-          price: 0,
-          isPremium: false,
+          name: "",
+          type: "TEST_SERIES",
           tests: [
             {
               title: "",
-              duration: 60,
-              totalMarks: 0,
-              totalQuestions: 0,
+              type: "FULL_MOCK",
+              totalDuration: 3600,
+              totalMarks: 100,
+              strictNavigation: false,
               sections: [
                 {
-                  name: "",
-                  totalQuestions: 0,
-                  totalMarks: 0,
-                  categoryId: "",
+                  name: "Quantitative Aptitude",
+                  duration: 1200,
+                  order: 1,
                   questions: [
                     {
-                      text: "",
+                      subject: "Math",
+                      topic: "General",
+                      content: "",
                       marks: 1,
-                      difficulty: "EASY",
-                      type: "SINGLE",
-                      categoryId: "",
+                      negativeMarks: 0.25,
+                      difficulty: "MEDIUM",
+                      type: "SINGLE_CHOICE",
                       options: [
-                        { text: "", isCorrect: false },
-                        { text: "", isCorrect: false }
+                        { content: "", isCorrect: false },
+                        { content: "", isCorrect: false }
                       ]
                     }
                   ]
@@ -111,81 +117,121 @@ const ExamForm = () => {
     }
   })
 
-  /* ---------------- BUILD FORM DATA ---------------- */
-
-  const buildExamFormData = (values: z.infer<typeof createExamSchema>) => {
-    const formData = new FormData()
-
-    formData.append("name", values.name)
-    formData.append("description", values.description || "")
-
-    formData.append("testSeries", JSON.stringify(values.testSeries))
-
-    return formData
-  }
-
-  /* ---------------- SUBMIT ---------------- */
-
+  /* ---------------- 3. OPTIMIZED SUBMIT HANDLER ---------------- */
   const onSubmit = async (values: z.infer<typeof createExamSchema>) => {
-    const formData = buildExamFormData(values)
-    await createProduct(formData)
-  }
+    try {
+      for (const collectionData of values.collections) {
+        
+        // Step 1: Create the Collection
+        const collRes = await createCollection({
+          name: collectionData.name,
+          type: collectionData.type,
+          parentId: values.parentId || null // Converts empty string to null safely
+        }).unwrap();
+        const collectionId = collRes.data.id;
 
-  /* ---------------- NAVIGATION ---------------- */
+        // Step 2: Iterate over Tests
+        for (const test of collectionData.tests) {
+          const backendSections = [];
+
+          // Step 3: Iterate over Sections
+          for (const section of test.sections) {
+            
+            // 🔥 FAANG OPTIMIZATION: Fire all question creation requests simultaneously!
+            // This turns 30 sequential HTTP requests into 1 fast parallel batch.
+            const questionPromises = section.questions.map(q => 
+              createQuestion({
+                subject: q.subject,
+                topic: q.topic,
+                difficulty: q.difficulty,
+                type: q.type,
+                content: { EN: q.content }, // Format for multilingual DB
+                options: q.options.map(opt => ({ content: { EN: opt.content }, isCorrect: opt.isCorrect }))
+              }).unwrap()
+            );
+
+            // Wait for all questions in this section to be created
+            const createdQuestions = await Promise.all(questionPromises);
+
+            // Map the returned IDs to the format the Test API expects
+            const mappedQuestions = createdQuestions.map((qRes, index) => ({
+              questionId: qRes.data.id,
+              marks: section.questions[index].marks,
+              negativeMarks: section.questions[index].negativeMarks
+            }));
+
+            // Construct backend-ready section
+            backendSections.push({
+              name: section.name,
+              duration: section.duration,
+              order: section.order,
+              questions: mappedQuestions
+            });
+          }
+
+          // Step 4: Create Test & Link to Collection + Mapped Sections
+          await createTest({
+            title: test.title,
+            type: test.type,
+            totalDuration: test.totalDuration,
+            totalMarks: test.totalMarks,
+            strictNavigation: test.strictNavigation,
+            liveStartTime: test.liveStartTime || null,
+            liveEndTime: test.liveEndTime || null,
+            collectionIds: [collectionId],
+            sections: backendSections
+          }).unwrap();
+        }
+      }
+
+      alert("Architecture & Tests deployed successfully!");
+    } catch (error) {
+      console.error("Failed to deploy architecture:", error);
+      alert("Error deploying exam data.");
+    }
+  }
 
   const handleNext = async () => {
-    const isValid = await form.trigger(["name"])
+    // Fixed trigger name to match Zod schema
+    const isValid = await form.trigger(["parentId"])
     if (!isValid) return
     setCurrentStep(2)
   }
 
-  const handlePrevious = () => {
-    setCurrentStep(1)
-  }
-
-  /* ---------------- UI ---------------- */
+  const handlePrevious = () => setCurrentStep(1)
 
   return (
-    <div className="w-full h-full flex flex-col p-4">
-      <h3 className="text-2xl font-bold pb-4">Create Exam</h3>
+    <div className="w-full h-full flex flex-col p-4 max-w-5xl mx-auto">
+      <h3 className="text-2xl font-bold pb-4">Exam & Test Builder</h3>
 
       <Card>
         <CardHeader>
-          <CardTitle>Create an Exam</CardTitle>
+          <CardTitle>Configure Mock Test Architecture</CardTitle>
           <CardDescription>Step {currentStep} of 2</CardDescription>
         </CardHeader>
 
         <CardContent>
           <Form {...form}>
-            <form
-              id="exam-form"
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="flex flex-col gap-4"
-            >
+            <form id="exam-form" onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-4">
 
-              {/* STEP 1 */}
+              {/* STEP 1: Select Master Parent ID */}
               {currentStep === 1 && (
-                <>
+                <div className="space-y-4">
                   <CustomInput
                     control={form.control}
-                    name="name"
-                    label="Exam Name"
+                    name="parentId" // Fixed from "examId"
+                    label="Parent Collection ID (Optional)"
                   />
-
-                  <CustomTextarea
-                    control={form.control}
-                    name="description"
-                    label="Description"
-                  />
-                </>
+                  <p className="text-xs text-muted-foreground">
+                    Tip: If this belongs to a Master Exam (like IBPS PO), paste its UUID here. Leave blank to make this a standalone Root Collection.
+                  </p>
+                </div>
               )}
 
-              {/* STEP 2 */}
+              {/* STEP 2: Collections -> Tests -> Sections -> Questions */}
               {currentStep === 2 && (
-                <TestSeriesFieldArray
+                <CollectionFieldArray // Fixed component rendering
                   control={form.control}
-                  index={0}   // ✅ ALWAYS ONE
-                  remove={() => {}} // disabled
                   setValue={form.setValue}
                 />
               )}
@@ -194,27 +240,18 @@ const ExamForm = () => {
           </Form>
         </CardContent>
 
-        <CardFooter className="flex justify-between">
-          <Button
-            variant="outline"
-            onClick={handlePrevious}
-            disabled={currentStep === 1}
-            type="button"
-          >
+        <CardFooter className="flex justify-between border-t pt-4">
+          <Button variant="outline" onClick={handlePrevious} disabled={currentStep === 1} type="button">
             Previous
           </Button>
 
           {currentStep === 1 ? (
             <Button type="button" onClick={handleNext}>
-              Next
+              Next: Build Content
             </Button>
           ) : (
-            <Button
-              form="exam-form"
-              type="submit"
-              disabled={isLoading}
-            >
-              {isLoading ? "Creating..." : "Create Exam"}
+            <Button form="exam-form" type="submit" disabled={isLoading} className="bg-green-600 hover:bg-green-700 text-white">
+              {isLoading ? "Deploying Architecture..." : "Publish Exam Suite"}
             </Button>
           )}
         </CardFooter>

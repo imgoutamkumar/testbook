@@ -5,45 +5,42 @@ import { CustomRadioButton } from "@/customComponent/radiobutton"
 import { Trash2 } from "lucide-react"
 
 const correctOptions = [
-  { label: "Correct", value: true },
-  { label: "Incorrect", value: false }
+  { label: "Correct", value: "true" },
+  { label: "Incorrect", value: "false" }
 ]
 
-const OptionFieldArray = ({ control, qIndex, sIndex, tIndex, tsIndex }) => {
+const OptionFieldArray = ({ control, qIndex, sIndex, tIndex, cIndex }: any) => {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: `testSeries.${tsIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options`
+    name: `collections.${cIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options` // <-- FIXED
   })
 
   return (
-    <div className="border p-3 rounded">
-      <h4 className="font-semibold">Options</h4>
+    <div className="border border-dashed p-3 rounded-md bg-secondary/20 space-y-3">
+      <h4 className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">Question Options</h4>
 
       {fields.map((field, optIndex) => (
         <div key={field.id} className="flex gap-2 items-center">
           <CustomInput
             control={control}
-            name={`testSeries.${tsIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options.${optIndex}.text`}
-            label={`Option ${optIndex + 1}`}
+            name={`collections.${cIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options.${optIndex}.content`} // <-- FIXED: Must be "content" not "text"
+            label={`Option ${optIndex + 1} Content`}
           />
 
           <CustomRadioButton
             control={control}
-            name={`testSeries.${tsIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options.${optIndex}.isCorrect`}
-            label="Correct"
+            name={`collections.${cIndex}.tests.${tIndex}.sections.${sIndex}.questions.${qIndex}.options.${optIndex}.isCorrect`} // <-- FIXED
+            label="Status"
             options={correctOptions}
           />
 
-          <Button variant="outline" type="button" onClick={() => remove(optIndex)}>
+          <Button variant="ghost" type="button" onClick={() => remove(optIndex)} disabled={fields.length <= 2}>
             <Trash2 className="w-4 h-4 text-red-500" />
           </Button>
         </div>
       ))}
 
-      <Button
-        type="button"
-        onClick={() => append({ text: "", isCorrect: false })}
-      >
+      <Button variant="outline" size="sm" type="button" onClick={() => append({ content: "", isCorrect: false })}>
         + Add Option
       </Button>
     </div>

@@ -1,86 +1,80 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// import { setToken } from '@/redux/authSlice'
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
+import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
-type ApiResponse<T = any> = {
-  data: T
-  status: string
-  message: string
+export interface User {
+  id: string;
+  email: string;
+  name?: string;
+  role: "STUDENT" | "ADMIN" | "CONTENT_CREATOR" | "SUPERADMIN";
+  isVerified: boolean;
+  createdAt?: string;
 }
 
-type AuthResponse = ApiResponse<null> & {
-  token: string
-}
-
-type LoginResponse = {
-  status: string
-  token: string
-  message: string
+export interface AuthResponse {
+  success: boolean;
+  message: string;
   data: {
-    role: string
-    id: string
-    email: string
-    action?: string
-  } | null
+    user?: User;
+    action?: "VERIFY_ACCOUNT";
+    email?: string;
+  };
 }
 
 export const authApi = createApi({
-    reducerPath: 'authApi',
-    tagTypes: ['User'],
-    baseQuery: fetchBaseQuery({
-        baseUrl: 'http://localhost:3000/',
-        prepareHeaders: (headers, { getState }) => {
-            const token = (getState() as any).auth.token
-
-            if (token) {
-                headers.set('authorization', `Bearer ${token}`)
-            }
-
-            return headers
-        },
+  reducerPath: "authApi",
+  baseQuery: fetchBaseQuery({
+    baseUrl: import.meta.env.VITE_API_URL || "https://mocktest-backend-g9bi.onrender.com/api/v1",
+    credentials: "include", // CRITICAL: sends and receives HttpOnly cookies
+  }),
+  endpoints: (builder) => ({
+    register: builder.mutation<AuthResponse, { name: string; email: string; password: string }>({
+      query: (body) => ({
+        url: "/auth/register",
+        method: "POST",
+        body,
+      }),
     }),
-    endpoints: (builder) => ({
-        register: builder.mutation<ApiResponse, { username: string; fullname: string, email: string; password: string }>({
-            query: (credentials) => ({
-                url: '/users/register',
-                method: 'POST',
-                body: credentials,
-            }),
-        }),
-        login: builder.mutation<LoginResponse, { email: string; password: string }>({
-            query: (credentials) => ({
-                url: '/users/login',
-                method: 'POST',
-                body: credentials,
-            }),
-            // async onQueryStarted(_, { dispatch, queryFulfilled }) {
-            //     try {
-            //         const { data } = await queryFulfilled
-            //         console.log('Login data', data);
-            //         dispatch(setToken(data.token))
-            //     } catch (error) {
-            //         console.error('Login failed:', error);
-            //     }
-            // },
-        }),
-        logout: builder.mutation<void, void>({
-            query: () => ({
-                url: '/logout',
-                method: 'POST',
-            }),
-            invalidatesTags: ['User'],
-        }),
-        getUser: builder.query<ApiResponse, string>({
-            query: (id) => `/users/${id}`, 
-            providesTags: ['User'],
-        }),
+    login: builder.mutation<AuthResponse, { email: string; password: string }>({
+      query: (credentials) => ({
+        url: "/auth/login",
+        method: "POST",
+        body: credentials,
+      }),
     }),
-})
+    verifyOtp: builder.mutation<{ success: boolean; message: string }, { email: string; otp: string }>({
+      query: (body) => ({
+        url: "/auth/verify-otp", // Ensure this matches your backend route
+        method: "POST",
+        body,
+      }),
+    }),
+    resendOtp: builder.mutation<{ success: boolean; message: string }, { email: string; type: string }>({
+      query: (body) => ({
+        url: "/auth/resend-otp", // Ensure this matches your backend route
+        method: "POST",
+        body,
+      }),
+    }),
+    logout: builder.mutation<{ success: boolean; message: string }, void>({
+      query: () => ({
+        url: "/auth/logout",
+        method: "POST",
+      }),
+    }),
+    getUser: builder.query<{ success: boolean; data: User }, void>({
+      query: () => ({
+        url: "/user/me", // Change this to your actual backend profile route (e.g., "/profile")
+        method: "GET",
+      }),
+    }),
+  }),
+});
 
 export const {
-  useRegisterMutation,
   useLoginMutation,
+  useRegisterMutation,
+  useVerifyOtpMutation,
+  useResendOtpMutation,
   useLogoutMutation,
   useGetUserQuery,
   useLazyGetUserQuery,
-} = authApi
+} = authApi;

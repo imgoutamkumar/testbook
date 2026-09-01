@@ -1,16 +1,14 @@
 import { useLazyGetUserQuery } from '@/redux/services/authApi'
 import { useEffect } from 'react'
-import { useParams } from 'react-router-dom'
 
 const Profile = () => {
-    const { id } = useParams<{ id: string }>()
+    // const { id } = useParams<{ id: string }>()
     const [getUser, { isLoading, error, data: userData }] = useLazyGetUserQuery()
 
     useEffect(() => {
-        if (id) {
-            getUser(id)
-        }
-    }, [getUser, id])
+        // Just call it empty!
+        getUser(); 
+    }, [getUser]);
 
     return (
         <div>

@@ -1,34 +1,48 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
+import { createSlice } from "@reduxjs/toolkit";
+import type { PayloadAction } from "@reduxjs/toolkit";
+import type { User } from "../services/authApi";
 
 interface AuthState {
-  token: string | null
-  role : string  | null
+  user: User | null;
+  isAuthenticated: boolean;
+  role: string | null;
 }
+
+// 1. Check localStorage on initial load so user stays logged in after page refresh!
+const savedRole = localStorage.getItem("role");
+const savedUserId = localStorage.getItem("userId");
 
 const initialState: AuthState = {
-  token: localStorage.getItem('token'),
-  role: localStorage.getItem('role')
-}
+  user: null,
+  isAuthenticated: !!savedRole, // If a role exists in local storage, they are logged in
+  role: savedRole,
+};
 
-const authSlice = createSlice({
-  name: 'auth',
+export const authSlice = createSlice({
+  name: "auth",
   initialState,
   reducers: {
-    setToken: (state, action: PayloadAction<string>) => {
-        console.log('Setting token in slice:', action.payload);
-      state.token = action.payload
-      localStorage.setItem('token', action.payload)
+    setCredentials: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.isAuthenticated = true;
+      state.role = action.payload.role;
+
+      // 2. Automatically sync to localStorage whenever Redux is updated
+      localStorage.setItem("role", action.payload.role);
+      localStorage.setItem("userId", action.payload.id || "");
     },
-    setRole: (state, action: PayloadAction<string>) => {
-      state.role = action.payload
-      localStorage.setItem('role', action.payload)
-    },
-    logout: (state) => {
-      state.token = null
-      localStorage.removeItem('token')
+
+    logoutUser: (state) => {
+      state.user = null;
+      state.isAuthenticated = false;
+      state.role = null;
+
+      // 3. 🚨 CRITICAL: Clear localStorage on logout!
+      localStorage.removeItem("role");
+      localStorage.removeItem("userId");
     },
   },
-})
+});
 
-export const { setToken, setRole, logout } = authSlice.actions
-export default authSlice.reducer
+export const { setCredentials, logoutUser } = authSlice.actions;
+export default authSlice.reducer;

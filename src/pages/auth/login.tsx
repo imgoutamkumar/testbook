@@ -1,106 +1,130 @@
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Link, useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { useState } from "react";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import { useLoginMutation } from "@/redux/services/authApi";
-import { setRole, setToken } from "@/redux/slices/authSlice";
-import { useDispatch } from "react-redux";
 import { Label } from "@/components/ui/label";
-import * as z from "zod"
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { useLoginMutation } from "@/redux/services/authApi";
+import { setCredentials } from "@/redux/slices/authSlice";
 
 const loginFormSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters long"),
-})
+});
 
+type LoginFormValues = z.infer<typeof loginFormSchema>;
 
 const Login = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [login, { data:loginData,isLoading }] = useLoginMutation()
-  const loginInitialState = {
-    email: "",
-    password: ""
-  }
-  const [loginState, setLoginState] = useState(loginInitialState);
+  const [login, { isLoading }] = useLoginMutation();
+  const [serverError, setServerError] = useState<string | null>(null);
 
-  const form = useForm<z.infer<typeof loginFormSchema>>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormValues>({
     resolver: zodResolver(loginFormSchema),
-    mode: "onTouched",
     defaultValues: {
       email: "",
       password: "",
     },
-  })
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    console.log("handleSubmit called")
-    event.preventDefault();
-     try {
-    const response = await login(loginState).unwrap();
-    console.log("response", response);
-    console.log("loginData",loginData)
+  });
 
-    form.reset();
-    dispatch(setToken(response.token));
+  const onSubmit = async (values: LoginFormValues) => {
+    setServerError(null);
+    try {
+      const response = await login(values).unwrap();
 
-    if (response?.data?.action === "VERIFY_ACCOUNT") {
-      navigate("/auth/otp");
-    } else if (response.status.toLowerCase() !== "success") {
-      return;
-    } else {
-      dispatch(setRole(response.data.role));
-
-      if (response.data.role === "admin") {
-        navigate("/admin/dashboard");
-      } else if (response.data.role === "user") {
-        navigate("/shop/home");
-      } else {
-        navigate("/");
+      // Check if account requires email OTP verification
+      if (response?.data?.action === "VERIFY_ACCOUNT") {
+        navigate("/auth/otp", { state: { email: values.email } });
+        return;
       }
+
+      if (response.success && response.data.user) {
+        const user = response.data.user;
+        dispatch(setCredentials(user));
+
+        // Route by role
+        if (user.role === "ADMIN" || user.role === "SUPERADMIN") {
+          navigate("/admin/new-exam");
+        } else if (user.role === "CONTENT_CREATOR") {
+          navigate("/creator/tests");
+        } else {
+          navigate("/"); // Student portal
+        }
+      }
+    } catch (err: any) {
+      console.error("Login Error:", err);
+      setServerError(err?.data?.message || "Invalid email or password");
     }
-  } catch (error) {
-    console.error("Login failed:", error);
-  }
   };
 
-
   return (
-    <div className="relative w-full h-full flex items-center justify-center">
-      <div className="flex flex-col justify-center w-full h-full max-w-sm z-20 px-2 md:px-0">
-        <form onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-4">
-            <h1 className="text-3xl font-bold">Login</h1>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" placeholder="enter email" onChange={(e) => setLoginState({ ...loginState, email: e.target.value })} />
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" placeholder="new password" type="password" onChange={(e) => setLoginState({ ...loginState, password: e.target.value })} />
-            </div>
-            <Button
-              className="w-full cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-              disabled={isLoading}
-              type="submit">
-              {isLoading ? "Logging in..." : "Login"}
-            </Button>
-          </div>
-        </form>
-        <div>
-          <p className="text-sm text-center mt-4">
-            <span>
-              Don't have an account?{" "}
-              <Link to="/auth/register" className="text-blue-500">
-                Register
-              </Link>
-            </span>
-          </p>
+    <div className="relative w-full min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="flex flex-col justify-center w-full max-w-md z-20 bg-card p-8 rounded-xl border shadow-sm">
+        <div className="mb-6 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">Sign In</h1>
+          <p className="text-sm text-muted-foreground mt-1">Enter your credentials to access your mock tests</p>
         </div>
-      </div>
-      <div className="absolute top-0 w-full h-full z-10 opacity-[6%]">
-        <img src="https://i.pinimg.com/1200x/8f/8e/76/8f8e76542303859ea8cbb2b3ce5d707c.jpg" alt="" className="w-full h-full object-cover object-center" />
+
+        {serverError && (
+          <div className="mb-4 p-3 text-sm text-destructive bg-destructive/10 border border-destructive/20 rounded-md">
+            {serverError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="student@example.com"
+              {...register("email")}
+              disabled={isLoading}
+            />
+            {errors.email && (
+              <p className="text-xs text-destructive">{errors.email.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="password">Password</Label>
+              <Link to="/auth/forgot-password" className="text-xs text-primary hover:underline">
+                Forgot password?
+              </Link>
+            </div>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              {...register("password")}
+              disabled={isLoading}
+            />
+            {errors.password && (
+              <p className="text-xs text-destructive">{errors.password.message}</p>
+            )}
+          </div>
+
+          <Button className="w-full mt-2" disabled={isLoading} type="submit">
+            {isLoading ? "Signing in..." : "Sign In"}
+          </Button>
+        </form>
+
+        <p className="text-sm text-center text-muted-foreground mt-6">
+          Don't have an account?{" "}
+          <Link to="/auth/register" className="text-primary font-medium hover:underline">
+            Register
+          </Link>
+        </p>
       </div>
     </div>
   );
